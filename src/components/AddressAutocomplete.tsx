@@ -81,7 +81,10 @@ const SAN_CRISTOBAL_BOUNDS = {
         const autocomplete = new google.maps.places.Autocomplete(inputRef.current, options)
 
         const uniqueCities = Array.from(new Set(allowedCities.map((city) => city.trim()).filter(Boolean)))
-        if (uniqueCities.length === 1) {
+        // Para Panther los bounds de San Cristóbal (Santa Fe) ya se aplicaron arriba. Geocodificar
+        // "San Cristóbal, Argentina" es ambiguo (hay un partido homónimo en Buenos Aires) y pisaría
+        // esos bounds con los de Buenos Aires, limitando las sugerencias a la provincia equivocada.
+        if (uniqueCities.length === 1 && !isPanther) {
             const geocoder = new google.maps.Geocoder()
             void geocoder.geocode({ address: `${uniqueCities[0]}, Argentina` }).then(({ results }) => {
                 const viewport = results[0]?.geometry?.viewport
