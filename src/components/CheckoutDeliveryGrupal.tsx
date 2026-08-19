@@ -108,18 +108,6 @@ export function CheckoutDeliveryGrupal({
   const itemsTotalNum = parseFloat(itemsTotal)
   const subtotalConEnvio = tipoPedido === 'delivery' ? itemsTotalNum + deliveryFee : itemsTotalNum
   const total = Math.max(0, subtotalConEnvio - montoDescuento)
-  const ciudadesSucursales = Array.from(new Set(
-    sucursales.map((s) => s.direccionCiudad?.trim()).filter((city): city is string => Boolean(city)),
-  ))
-  // Panther Burger no tiene sucursales cargadas en el panel: limitar las sugerencias a San Cristóbal
-  const ciudadesPermitidas = ciudadesSucursales.length > 0 ? ciudadesSucursales : ['San Cristóbal']
-  const ubicacionesSucursales = sucursales.flatMap((s) => {
-    const sucursalLat = Number(s.direccionLat)
-    const sucursalLng = Number(s.direccionLng)
-    return Number.isFinite(sucursalLat) && Number.isFinite(sucursalLng)
-      ? [{ lat: sucursalLat, lng: sucursalLng }]
-      : []
-  })
   const direccionRetiro = sucursales.length === 1
     ? sucursales[0].direccion
     : restauranteDireccion
@@ -532,11 +520,7 @@ export function CheckoutDeliveryGrupal({
           <AddressAutocomplete
             value={direccion}
             onChange={handleAddressChange}
-            placeholder={ciudadesPermitidas.length === 1
-              ? `Ej: calle y número, ${ciudadesPermitidas[0]}`
-              : 'Ej: calle y número'}
-            allowedCities={ciudadesPermitidas}
-            biasLocations={ubicacionesSucursales}
+            placeholder="Ej: Espora 811, Santa Fe"
           />
           {lat !== null && lng !== null && <AddressMapPreview lat={lat} lng={lng} />}
           {lat !== null && lng !== null && direccion && (
