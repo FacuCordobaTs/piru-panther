@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useMesaStore } from '@/store/mesaStore'
 import { useCarritoStore } from '@/store/carritoStore'
 import { toast } from 'sonner'
+import { redirectPedidoAlWhatsapp } from '@/lib/checkoutWhatsapp'
 
 interface ItemPedido {
   id: number
@@ -179,7 +180,7 @@ export const useClienteWebSocket = (): UseClienteWebSocketReturn => {
           hasConnectedRef.current = false
         }
 
-        ws.onmessage = (event) => {
+        ws.onmessage = async (event) => {
           try {
             const data = JSON.parse(event.data)
             console.log('Mensaje WebSocket recibido:', data)
@@ -429,7 +430,7 @@ export const useClienteWebSocket = (): UseClienteWebSocketReturn => {
 
               case 'SALA_PEDIDO_CREADO':
                 const payload = data.payload
-                sessionStorage.setItem('salaOrderInfo', JSON.stringify({
+                const orderInfo = {
                   token: payload.token,
                   pedidoId: payload.pedidoId,
                   tipoPedido: payload.tipoPedido,
@@ -441,7 +442,32 @@ export const useClienteWebSocket = (): UseClienteWebSocketReturn => {
                   zonaNombre: payload.zonaNombre,
                   direccion: payload.direccion,
                   metodoPago: payload.metodoPago || 'transferencia',
-                }))
+                  montoDescuento: payload.montoDescuento ? parseFloat(payload.montoDescuento) : undefined,
+                }
+                sessionStorage.setItem('salaOrderInfo', JSON.stringify(orderInfo))
+                const restauranteActual = useMesaStore.getState().restaurante
+                const esIniciadorWhatsapp = restauranteActual?.avisosWhatsappClienteEnabled === false
+                  && sessionStorage.getItem(`salaWhatsappInitiator_${payload.token}`) === '1'
+                if (esIniciadorWhatsapp) {
+                  const redirectKey = `salaWhatsappRedirect_${payload.pedidoId}`
+                  if (sessionStorage.getItem(redirectKey) !== '1') {
+                    sessionStorage.setItem(redirectKey, '1')
+                    const redirected = await redirectPedidoAlWhatsapp(
+                      orderInfo,
+                      restauranteActual,
+                      payload.whatsappDestino,
+                      payload.transferenciaAliasDestino,
+                    )
+                    if (redirected) {
+                      sessionStorage.removeItem(`salaWhatsappInitiator_${payload.token}`)
+                      break
+                    }
+                    sessionStorage.removeItem(redirectKey)
+                    toast.error('No pudimos abrir WhatsApp', { description: 'Podés continuar desde el resumen de tu pedido.' })
+                  } else {
+                    break
+                  }
+                }
                 window.location.href = `/sala/${payload.token}/success`
                 break
             }

@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { useMesaStore } from '@/store/mesaStore'
 import { useClienteWebSocket } from '@/hooks/useClienteWebSocket'
 import { mesaApi } from '@/lib/api'
+import { redirectPedidoAlWhatsapp } from '@/lib/checkoutWhatsapp'
 import { toast } from 'sonner'
 import {
   Trash2, Maximize2, Minimize2,
@@ -289,6 +290,12 @@ const Menu = () => {
       return
     }
 
+    // Sin avisos automáticos, el pedido lo envía el cliente desde su WhatsApp:
+    // marcar como iniciador para que SALA_PEDIDO_CREADO redirija a WhatsApp en vez de a success.
+    if (restaurante?.avisosWhatsappClienteEnabled === false && urlQrToken) {
+      sessionStorage.setItem(`salaWhatsappInitiator_${urlQrToken}`, '1')
+    }
+
     if (clientes.length <= 1) {
       sendMessage({ type: 'CONFIRMAR_PEDIDO', payload: {} })
       cerrarCarrito()
@@ -349,7 +356,7 @@ const Menu = () => {
         const res = await fetch(`${url}/public/sala/${token}/order-created`)
         const data = await res.json()
         if (data.success && data.order) {
-          sessionStorage.setItem('salaOrderInfo', JSON.stringify({
+          const orderInfo = {
             token: data.order.token,
             pedidoId: data.order.pedidoId,
             tipoPedido: data.order.tipoPedido,
@@ -362,7 +369,24 @@ const Menu = () => {
             direccion: data.order.direccion,
             metodoPago: data.order.metodoPago || checkoutDeliveryData?.metodoPago || 'transferencia',
             montoDescuento: data.order.montoDescuento ? parseFloat(data.order.montoDescuento) : undefined,
-          }))
+          }
+          sessionStorage.setItem('salaOrderInfo', JSON.stringify(orderInfo))
+          const debeEnviarWhatsapp = restaurante?.avisosWhatsappClienteEnabled === false
+            && sessionStorage.getItem(`salaWhatsappInitiator_${token}`) === '1'
+          if (debeEnviarWhatsapp) {
+            const redirectKey = `salaWhatsappRedirect_${data.order.pedidoId}`
+            if (sessionStorage.getItem(redirectKey) !== '1') {
+              sessionStorage.setItem(redirectKey, '1')
+              const redirected = await redirectPedidoAlWhatsapp(orderInfo, restaurante)
+              if (redirected) {
+                sessionStorage.removeItem(`salaWhatsappInitiator_${token}`)
+                return
+              }
+              sessionStorage.removeItem(redirectKey)
+            } else {
+              return
+            }
+          }
           window.location.href = `/sala/${data.order.token}/success`
         }
       } catch { /* ignore */ }
