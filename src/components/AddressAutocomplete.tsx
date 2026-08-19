@@ -12,6 +12,9 @@ interface AddressAutocompleteProps {
     allowedCities?: string[]
     /** Coordenadas de las sucursales, usadas para sesgar la búsqueda cuando hay más de una ciudad. */
     biasLocations?: Array<{ lat: number; lng: number }>
+    /** Dirección completa del negocio (schema). Si no hay coordenadas, se geocodifica esta dirección
+     * (con ciudad y provincia: sin ambigüedad) para restringir las sugerencias a la zona del local. */
+    boundsAddress?: string
 }
 
 function normalizeCity(value: string): string {
@@ -34,6 +37,7 @@ export function AddressAutocomplete({
     className,
     allowedCities = [],
     biasLocations = [],
+    boundsAddress,
 }: AddressAutocompleteProps) {
     const inputRef = useRef<HTMLInputElement>(null)
     const containerRef = useRef<HTMLDivElement>(null)
@@ -103,6 +107,23 @@ const SAN_CRISTOBAL_BOUNDS = {
                 bounds.extend(new google.maps.LatLng(point.lat - PAD, point.lng - PAD))
             }
             autocomplete.setOptions({ bounds, strictBounds: true })
+        } else if (boundsAddress) {
+            // La dirección completa del negocio (con ciudad y provincia) se geocodifica sin
+            // ambigüedad, a diferencia del nombre de la ciudad solo ("San Cristóbal" también
+            // existe en Buenos Aires y resolvería a la provincia equivocada).
+            const geocoder = new google.maps.Geocoder()
+            void geocoder.geocode({ address: boundsAddress }).then(({ results }) => {
+                const viewport = results[0]?.geometry?.viewport
+                if (viewport) {
+                    // El viewport de una dirección puntual es muy chico para sugerencias: expandirlo
+                    const PAD = 0.02 // ~2 km
+                    const bounds = new google.maps.LatLngBounds(
+                        new google.maps.LatLng(viewport.getSouthWest().lat() - PAD, viewport.getSouthWest().lng() - PAD),
+                        new google.maps.LatLng(viewport.getNorthEast().lat() + PAD, viewport.getNorthEast().lng() + PAD),
+                    )
+                    autocomplete.setOptions({ bounds, strictBounds: true })
+                }
+            }).catch(() => {})
         }
 
         autocomplete.addListener('place_changed', () => {
@@ -135,7 +156,7 @@ const SAN_CRISTOBAL_BOUNDS = {
             google.maps.event.clearInstanceListeners(autocomplete)
             if (autocompleteRef.current === autocomplete) autocompleteRef.current = null
         }
-    }, [isLoaded, stableOnChange, allowedCitiesKey, biasLocationsKey])
+    }, [isLoaded, stableOnChange, allowedCitiesKey, biasLocationsKey, boundsAddress])
 
     const handleClear = () => {
         setInternalValue('')

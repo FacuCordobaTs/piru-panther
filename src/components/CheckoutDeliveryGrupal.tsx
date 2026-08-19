@@ -542,6 +542,7 @@ export function CheckoutDeliveryGrupal({
               : 'Ej: calle y número'}
             allowedCities={ciudadesSucursales}
             biasLocations={ubicacionesNegocio}
+            boundsAddress={restauranteData?.direccion || undefined}
           />
           {lat !== null && lng !== null && <AddressMapPreview lat={lat} lng={lng} />}
           {lat !== null && lng !== null && direccion && (
