@@ -833,7 +833,8 @@ const MenuDelivery = () => {
                             editSemaphore={editSemaphoreLocal}
                             restauranteDireccion={restaurante?.direccion ?? undefined}
                             onTituloChange={setTituloCheckout}
-                            labelGuardar="Confirmar y pedir"
+                            labelGuardar={restaurante?.avisosWhatsappClienteEnabled === false ? 'Enviar pedido al WhatsApp' : 'Confirmar y pedir'}
+                            enviarPedidoWhatsapp={restaurante?.avisosWhatsappClienteEnabled === false}
                             localCerrado={!estadoAbierto.abierto}
                         />
                     ) : cartItems.length === 0 ? (

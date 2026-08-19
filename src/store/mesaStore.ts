@@ -22,6 +22,7 @@ interface Restaurante {
   colorSecundario?: string | null
   usarColorUnico?: boolean | null
   username?: string | null
+  avisosWhatsappClienteEnabled?: boolean
 }
 
 // Datos de checkout grupal (sala)

@@ -779,6 +779,7 @@ const Menu = () => {
               editSemaphore={checkoutEditSemaphore}
               restauranteDireccion={restaurante?.direccion ?? undefined}
               onTituloChange={setTituloCheckout}
+              enviarPedidoWhatsapp={restaurante?.avisosWhatsappClienteEnabled === false}
               localCerrado={localCerrado}
             />
           ) : todosLosItems.length === 0 ? (

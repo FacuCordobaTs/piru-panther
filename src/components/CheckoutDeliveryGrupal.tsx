@@ -111,6 +111,8 @@ export function CheckoutDeliveryGrupal({
   const ciudadesSucursales = Array.from(new Set(
     sucursales.map((s) => s.direccionCiudad?.trim()).filter((city): city is string => Boolean(city)),
   ))
+  // Panther Burger no tiene sucursales cargadas en el panel: limitar las sugerencias a San Cristóbal
+  const ciudadesPermitidas = ciudadesSucursales.length > 0 ? ciudadesSucursales : ['San Cristóbal']
   const ubicacionesSucursales = sucursales.flatMap((s) => {
     const sucursalLat = Number(s.direccionLat)
     const sucursalLng = Number(s.direccionLng)
@@ -530,10 +532,10 @@ export function CheckoutDeliveryGrupal({
           <AddressAutocomplete
             value={direccion}
             onChange={handleAddressChange}
-            placeholder={ciudadesSucursales.length === 1
-              ? `Ej: calle y número, ${ciudadesSucursales[0]}`
+            placeholder={ciudadesPermitidas.length === 1
+              ? `Ej: calle y número, ${ciudadesPermitidas[0]}`
               : 'Ej: calle y número'}
-            allowedCities={ciudadesSucursales}
+            allowedCities={ciudadesPermitidas}
             biasLocations={ubicacionesSucursales}
           />
           {lat !== null && lng !== null && <AddressMapPreview lat={lat} lng={lng} />}
