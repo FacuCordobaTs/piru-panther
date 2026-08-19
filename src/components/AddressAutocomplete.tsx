@@ -65,7 +65,10 @@ const SAN_CRISTOBAL_BOUNDS = {
     useEffect(() => {
         if (!isLoaded || !inputRef.current || autocompleteRef.current) return
 
-        const isPanther = window.location.pathname.includes('/panther')
+        // La app de Panther Burger se sirve en pantherburger.com / panther-d5w.pages.dev (ruta raíz).
+        // Detectar por hostname: la detección por pathname nunca matcheaba en producción y dejaba
+        // las sugerencias sin restringir (o restringidas a la ciudad equivocada).
+        const isPanther = window.location.hostname.includes('panther')
 
         const options: google.maps.places.AutocompleteOptions = {
             componentRestrictions: { country: 'ar' },
@@ -91,9 +94,15 @@ const SAN_CRISTOBAL_BOUNDS = {
                 if (viewport) autocomplete.setOptions({ bounds: viewport, strictBounds: true })
             }).catch(() => {})
         } else if (biasLocations.length > 0) {
+            // Con un único punto (la dirección del restaurante) el bounds degenera y Google no
+            // sugiere nada: expandir cada coordenada para delimitar un área alrededor del negocio.
+            const PAD = 0.04 // ~4 km
             const bounds = new google.maps.LatLngBounds()
-            for (const point of biasLocations) bounds.extend(point)
-            autocomplete.setBounds(bounds)
+            for (const point of biasLocations) {
+                bounds.extend(new google.maps.LatLng(point.lat + PAD, point.lng + PAD))
+                bounds.extend(new google.maps.LatLng(point.lat - PAD, point.lng - PAD))
+            }
+            autocomplete.setOptions({ bounds, strictBounds: true })
         }
 
         autocomplete.addListener('place_changed', () => {
