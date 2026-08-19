@@ -443,9 +443,10 @@ const MenuDelivery = () => {
         const newItem = {
             id: Math.random().toString(36).substr(2, 9),
             productoId: producto.id,
+            categoria: producto.categoria,
             nombre: nombreFinal,
             precio: precioFinalNumber.toFixed(2),
-            precioOriginal: producto.precio,
+            precioOriginal: varianteSeleccionada ? varianteSeleccionada.precio : producto.precio,
             descuento: producto.descuento || 0,
             imagenUrl: producto.imagenUrl,
             cantidad,
@@ -1044,6 +1045,53 @@ const ProductoCard = ({ producto, onClick, fullWidth }: { producto: any, onClick
     const tieneDescuento = !!(producto.descuento && producto.descuento > 0)
     const precioOriginal = parseFloat(producto.precio)
     const precioFinal = tieneDescuento ? precioOriginal * (1 - producto.descuento / 100) : precioOriginal
+
+    // ─────────────────────────────────────────────
+    // DISEÑO 3: TEXT-ONLY (SIN IMAGEN)
+    // ─────────────────────────────────────────────
+    if (!producto.imagenUrl) {
+        return (
+            <div
+                className={`group relative flex flex-col justify-between ${fullWidth ? 'w-full' : 'w-44 shrink-0 lg:w-full'} min-h-[140px] p-4.5 rounded-[24px] bg-card border border-border/50 shadow-sm hover:shadow-md transition-all duration-300 hover:border-primary/30 hover:bg-accent/20 hover:scale-[1.02] active:scale-[0.98] ${!fullWidth ? 'snap-start' : ''}`}
+                onClick={onClick}
+            >
+                <div className="flex-1">
+                    <div className="flex justify-between items-start gap-3 mb-2">
+                        <h3 className="font-bold text-[15px] leading-snug text-foreground line-clamp-3">
+                            {producto.nombre}
+                        </h3>
+                        {tieneDescuento && (
+                            <span className="shrink-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-extrabold px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                                -{producto.descuento}%
+                            </span>
+                        )}
+                    </div>
+                    {producto.descripcion && (
+                        <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed font-medium">
+                            {producto.descripcion}
+                        </p>
+                    )}
+                </div>
+
+                <div className="mt-4 flex items-end gap-1.5">
+                    <span className={`font-black text-[18px] ${tieneDescuento ? 'text-emerald-600 dark:text-emerald-400' : 'text-primary'}`}>
+                        ${precioFinal.toFixed(0)}
+                    </span>
+                    {tieneDescuento && (
+                        <span className="text-[11px] font-semibold text-muted-foreground line-through opacity-70 mb-0.5">
+                            ${precioOriginal.toFixed(0)}
+                        </span>
+                    )}
+                </div>
+                {tieneDescuento && producto.descuentoFechaFin && formatTimeLeft(producto.descuentoFechaFin) && (
+                    <div className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 rounded-full border border-amber-500/20 w-fit">
+                        <span>⏱</span>
+                        <span>Vence en {formatTimeLeft(producto.descuentoFechaFin)}</span>
+                    </div>
+                )}
+            </div>
+        )
+    }
 
     // Diseño sólido (único): el glassmorphism quedó discontinuado.
     return (
