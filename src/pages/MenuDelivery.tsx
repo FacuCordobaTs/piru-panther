@@ -14,6 +14,7 @@ import { guardarTemaRestaurante, leerTemaRestaurante, RestauranteTheme } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { CheckoutDeliveryGrupal } from '@/components/CheckoutDeliveryGrupal'
+import { redirectPedidoAlWhatsapp } from '@/lib/checkoutWhatsapp'
 
 type HorarioTurno = { diaSemana: number; horaApertura: string; horaCierre: string }
 
@@ -256,7 +257,7 @@ const MenuDelivery = () => {
                     if (data.lng != null) localStorage.setItem('cliente_lng', String(data.lng))
                 }
                 localStorage.removeItem(`deliveryCart_${username}`)
-                sessionStorage.setItem('deliveryOrderInfo', JSON.stringify({
+                const orderInfo = {
                     pedidoId: result.data.id,
                     tipoPedido,
                     total: result.data.total ? parseFloat(result.data.total) : parseFloat(data.total || '0'),
@@ -271,8 +272,22 @@ const MenuDelivery = () => {
                     montoDescuento: data.montoDescuento > 0 ? data.montoDescuento : undefined,
                     horarioProgramado: data.horarioProgramado || undefined,
                     notas: data.notas || undefined,
-                }))
-                navigate(`/success`)
+                }
+                sessionStorage.setItem('deliveryOrderInfo', JSON.stringify(orderInfo))
+                if (restaurante.avisosWhatsappClienteEnabled === false) {
+                    const redirected = await redirectPedidoAlWhatsapp(
+                        orderInfo,
+                        restaurante,
+                        result.data.whatsappDestino,
+                        result.data.transferenciaAliasDestino,
+                    )
+                    if (!redirected) {
+                        toast.error('No pudimos abrir WhatsApp', { description: 'Podés continuar desde el resumen de tu pedido.' })
+                        navigate('/success')
+                    }
+                } else {
+                    navigate('/success')
+                }
             } else {
                 if (result.code === 'FUERA_DE_ZONA') {
                     toast.error('Fuera de zona', { description: 'Tu dirección está fuera del área de delivery. Probá con otra dirección o elegí Take Away.', duration: 6000 })
