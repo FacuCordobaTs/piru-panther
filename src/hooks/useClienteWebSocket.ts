@@ -16,6 +16,7 @@ interface ItemPedido {
   imagenUrl?: string | null // URL de la imagen del producto
   ingredientesExcluidos?: number[] // IDs de ingredientes excluidos
   ingredientesExcluidosNombres?: string[] // Nombres de ingredientes excluidos
+  nota?: string | null
 }
 
 interface WebSocketState {

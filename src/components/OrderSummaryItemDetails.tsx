@@ -20,6 +20,11 @@ export function OrderSummaryItemDetails({ item }: { item: any }) {
                         : ''}
                 </p>
             ))}
+            {item.nota ? (
+                <p className="mt-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+                    Nota: {item.nota}
+                </p>
+            ) : null}
         </div>
     )
 }

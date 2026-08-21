@@ -229,6 +229,7 @@ const MenuDelivery = () => {
                     cantidad: i.cantidad,
                     ingredientesExcluidos: i.ingredientesExcluidos,
                     agregados: i.agregados || [],
+                    nota: i.nota,
                     esCanjePuntos: i.esCanjePuntos || false
                 })),
                 metodoPago: data.metodoPago,
@@ -236,8 +237,8 @@ const MenuDelivery = () => {
             if (data.codigoDescuentoId) payload.codigoDescuentoId = data.codigoDescuentoId
             if (tipoPedido === 'delivery') {
                 payload.direccion = data.direccion
-                payload.lat = data.lat
-                payload.lng = data.lng
+                if (data.lat != null) payload.lat = data.lat
+                if (data.lng != null) payload.lng = data.lng
                 if (data.sucursalId) payload.sucursalId = data.sucursalId
             }
             if (tipoPedido === 'takeaway' && data.sucursalId) payload.sucursalId = data.sucursalId
@@ -426,7 +427,7 @@ const MenuDelivery = () => {
                 ? []
                 : productosFiltrados
 
-    const agregarAlPedido = (producto: any, cantidad: number = 1, ingredientesExcluidos?: number[], agregados?: any[], varianteSeleccionada?: any, varianteSecundariaSeleccionada?: any) => {
+    const agregarAlPedido = (producto: any, cantidad: number = 1, ingredientesExcluidos?: number[], agregados?: any[], varianteSeleccionada?: any, varianteSecundariaSeleccionada?: any, nota?: string) => {
         let ingExNombres: string[] = []
         if (ingredientesExcluidos && ingredientesExcluidos.length > 0) {
             ingExNombres = producto.ingredientes
@@ -475,6 +476,7 @@ const MenuDelivery = () => {
             ingredientesExcluidos: ingredientesExcluidos || [],
             ingredientesExcluidosNombres: ingExNombres,
             agregados: agregados || [],
+            nota: nota?.trim() || undefined,
             esCanjePuntos: esCanje,
             puntosNecesarios: esCanje ? producto.puntosNecesarios : 0,
             puntosGanados: esCanje ? 0 : producto.puntosGanados
@@ -850,6 +852,7 @@ const MenuDelivery = () => {
                             checkoutData={checkoutDeliveryData}
                             editSemaphore={editSemaphoreLocal}
                             restauranteDireccion={restaurante?.direccion ?? undefined}
+                            direccionSoloTexto={restaurante?.direccionSoloTexto === true}
                             onTituloChange={setTituloCheckout}
                             labelGuardar={restaurante?.avisosWhatsappClienteEnabled === false ? 'Enviar pedido al WhatsApp' : 'Confirmar y pedir'}
                             enviarPedidoWhatsapp={restaurante?.avisosWhatsappClienteEnabled === false}
@@ -895,6 +898,9 @@ const MenuDelivery = () => {
                                                                     <p key={ag.id} className="text-xs text-muted-foreground font-medium">+ {ag.nombre}</p>
                                                                 ))}
                                                             </div>
+                                                        )}
+                                                        {item.nota && (
+                                                            <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-400">Nota: {item.nota}</p>
                                                         )}
                                                     </div>
                                                     <div className="text-right">

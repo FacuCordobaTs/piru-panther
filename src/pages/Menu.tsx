@@ -255,7 +255,7 @@ const Menu = () => {
     ? categoriasOrdenadas.flatMap(c => productosPorCategoria[c] || [])
     : productosFiltrados
 
-  const agregarAlPedido = (producto: typeof productos[0] | any, cantidad: number = 1, ingredientesExcluidos?: number[], agregados?: any[], varianteSeleccionada?: any, varianteSecundariaSeleccionada?: any) => {
+  const agregarAlPedido = (producto: typeof productos[0] | any, cantidad: number = 1, ingredientesExcluidos?: number[], agregados?: any[], varianteSeleccionada?: any, varianteSecundariaSeleccionada?: any, nota?: string) => {
     if (!clienteNombre) return
     let precioBase = varianteSeleccionada ? parseFloat(String(varianteSeleccionada.precio)) : parseFloat(String(producto.precio))
     precioBase += varianteSecundariaSeleccionada ? parseFloat(String(varianteSecundariaSeleccionada.precio)) : 0
@@ -278,6 +278,7 @@ const Menu = () => {
         varianteNombre: varianteSeleccionada?.nombre,
         varianteSecundariaId: varianteSecundariaSeleccionada?.id,
         varianteSecundariaNombre: varianteSecundariaSeleccionada?.nombre,
+        nota: nota?.trim() || undefined,
       },
     })
     setTimeout(() => abrirCarrito(), 350)
@@ -507,6 +508,9 @@ const Menu = () => {
                     </p>
                   ))}
                 </div>
+              )}
+              {(item as any).nota && (
+                <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-400">Nota: {(item as any).nota}</p>
               )}
             </div>
             <p className="font-bold text-base">${(precio * item.cantidad).toFixed(2)}</p>
@@ -807,6 +811,7 @@ const Menu = () => {
               checkoutData={checkoutDeliveryData}
               editSemaphore={checkoutEditSemaphore}
               restauranteDireccion={restaurante?.direccion ?? undefined}
+              direccionSoloTexto={restaurante?.direccionSoloTexto === true}
               onTituloChange={setTituloCheckout}
               enviarPedidoWhatsapp={restaurante?.avisosWhatsappClienteEnabled === false}
               localCerrado={localCerrado}

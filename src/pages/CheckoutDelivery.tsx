@@ -308,6 +308,7 @@ const CheckoutDelivery = () => {
                     cantidad: i.cantidad,
                     ingredientesExcluidos: i.ingredientesExcluidos,
                     agregados: i.agregados || [],
+                    nota: i.nota,
                     esCanjePuntos: i.esCanjePuntos || false
                 }))
             }

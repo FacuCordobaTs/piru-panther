@@ -18,6 +18,7 @@ interface Restaurante {
   soloCartaDigital: boolean
   disenoAlternativo?: boolean | null
   direccion?: string | null
+  direccionSoloTexto?: boolean | null
   colorPrimario?: string | null
   colorSecundario?: string | null
   usarColorUnico?: boolean | null
@@ -65,6 +66,8 @@ interface Producto {
   categoriaId: number | null
   categoria: string | null
   ingredientes?: Ingrediente[]
+  permiteNota?: boolean
+  tituloNota?: string
 }
 
 interface Cliente {
@@ -91,6 +94,7 @@ interface ItemPedido {
   nombreProducto?: string
   nombre?: string
   imagenUrl?: string | null
+  nota?: string | null
 }
 
 // Datos del último pedido cerrado (para mostrar en la pantalla de factura)

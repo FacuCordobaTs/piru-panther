@@ -95,6 +95,7 @@ export function buildWhatsappOrderMessage(orderInfo: any, args: BuildArgs): stri
             const precio = parseFloat(String(ag.precio ?? 0)) || 0
             L.push(`   ↳ Extra: ${ag.nombre}${precio > 0 ? ` (+${money(precio)})` : ''}`)
         }
+        if (it.nota) L.push(`   ↳ Nota: ${String(it.nota).trim()}`)
     }
 
     // Agrupar por categoría, preservando el orden de aparición de cada categoría.

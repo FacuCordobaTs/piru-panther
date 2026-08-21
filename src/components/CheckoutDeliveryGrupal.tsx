@@ -26,6 +26,8 @@ interface CheckoutDeliveryGrupalProps {
   checkoutData: CheckoutDeliveryData | null
   editSemaphore: CheckoutEditSemaphore | null
   restauranteDireccion?: string
+  /** Preferencia pública del restaurante; evita mostrar Maps mientras carga el detalle del checkout. */
+  direccionSoloTexto?: boolean
   /** 'completo' = formulario completo scrolleable (drawer expandido). 'pasos' = wizard paso a paso (drawer comprimido). */
   modo: 'completo' | 'pasos'
   /** Volver a la vista del carrito */
@@ -52,6 +54,7 @@ export function CheckoutDeliveryGrupal({
   checkoutData,
   editSemaphore,
   restauranteDireccion,
+  direccionSoloTexto: direccionSoloTextoProp,
   modo,
   onVolverCarrito,
   onTituloChange,
@@ -104,7 +107,10 @@ export function CheckoutDeliveryGrupal({
   const alguienEditando = editSemaphore && !estoyEditando
 
   const codigoDescuentoEnabled = !restauranteData || restauranteData.codigoDescuentoEnabled === true
-  const deliveryFee = zonaDeliveryFee !== null ? zonaDeliveryFee : 0
+  const direccionSoloTexto = direccionSoloTextoProp === true || restauranteData?.direccionSoloTexto === true
+  const deliveryFee = zonaDeliveryFee !== null
+    ? zonaDeliveryFee
+    : (direccionSoloTexto ? (parseFloat(restauranteData?.deliveryFee ?? '0') || 0) : 0)
   const itemsTotalNum = parseFloat(itemsTotal)
   const subtotalConEnvio = tipoPedido === 'delivery' ? itemsTotalNum + deliveryFee : itemsTotalNum
   const total = Math.max(0, subtotalConEnvio - montoDescuento)
@@ -292,7 +298,7 @@ export function CheckoutDeliveryGrupal({
       toast.error('Completa nombre y celular')
       return
     }
-    if (tipoPedido === 'delivery' && (lat === null || lng === null)) {
+    if (tipoPedido === 'delivery' && !direccionSoloTexto && (lat === null || lng === null)) {
       toast.error('Selecciona una dirección de las sugerencias')
       return
     }
@@ -389,7 +395,7 @@ export function CheckoutDeliveryGrupal({
     if (k === 'ubicacion') {
       if (tipoPedido === 'delivery') {
         if (!direccion.trim()) { toast.error('Ingresa la dirección'); return false }
-        if (lat === null || lng === null) { toast.error('Selecciona una dirección de las sugerencias'); return false }
+        if (!direccionSoloTexto && (lat === null || lng === null)) { toast.error('Selecciona una dirección de las sugerencias'); return false }
         if (fueraDeZona) { toast.error('La dirección está fuera del área de delivery'); return false }
         if (!tipoDomicilio) { toast.error('Indicá si es casa o departamento'); return false }
         if (tipoDomicilio === 'departamento' && (!piso.trim() || !numeroDepartamento.trim())) { toast.error('Ingresá el piso y el número de departamento'); return false }
@@ -439,7 +445,7 @@ export function CheckoutDeliveryGrupal({
   const datosCompletos = checkoutData &&
     checkoutData.nombre?.trim() &&
     checkoutData.telefono?.trim() &&
-    (checkoutData.tipoPedido === 'takeaway' || (checkoutData.direccion?.trim() && checkoutData.lat != null && checkoutData.lng != null))
+    (checkoutData.tipoPedido === 'takeaway' || (checkoutData.direccion?.trim() && (direccionSoloTexto || (checkoutData.lat != null && checkoutData.lng != null))))
 
   const delEn = restauranteData ? restauranteData.deliveryEnabled !== false : true
   const tkEn = restauranteData ? restauranteData.takeawayEnabled !== false : true
@@ -534,18 +540,22 @@ export function CheckoutDeliveryGrupal({
       {tipoPedido === 'delivery' && (
         <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
           <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">Dirección de entrega</Label>
-          <AddressAutocomplete
-            value={direccion}
-            onChange={handleAddressChange}
-            placeholder={ciudadesSucursales.length === 1
-              ? `Ej: calle y número, ${ciudadesSucursales[0]}`
-              : 'Ej: calle y número'}
-            allowedCities={ciudadesSucursales}
-            biasLocations={ubicacionesNegocio}
-            boundsAddress={restauranteData?.direccion || undefined}
-          />
-          {lat !== null && lng !== null && <AddressMapPreview lat={lat} lng={lng} />}
-          {lat !== null && lng !== null && direccion && (
+          {direccionSoloTexto ? (
+            <Input value={direccion} onChange={(event) => handleAddressChange(event.target.value, null, null)} placeholder="Ej: Calle 123, barrio, ciudad" className={inputCls} autoComplete="street-address" />
+          ) : (
+            <AddressAutocomplete
+              value={direccion}
+              onChange={handleAddressChange}
+              placeholder={ciudadesSucursales.length === 1
+                ? `Ej: calle y número, ${ciudadesSucursales[0]}`
+                : 'Ej: calle y número'}
+              allowedCities={ciudadesSucursales}
+              biasLocations={ubicacionesNegocio}
+              boundsAddress={restauranteData?.direccion || undefined}
+            />
+          )}
+          {!direccionSoloTexto && lat !== null && lng !== null && <AddressMapPreview lat={lat} lng={lng} />}
+          {!direccionSoloTexto && lat !== null && lng !== null && direccion && (
             <div className="animate-in fade-in duration-300">
               {isCheckingZona ? (
                 <div className="flex items-center gap-2.5 px-4 py-3 bg-secondary/50 rounded-2xl">
