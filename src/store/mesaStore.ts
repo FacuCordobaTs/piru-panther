@@ -57,6 +57,20 @@ interface Ingrediente {
   nombre: string
 }
 
+interface Agregado {
+  id: number
+  nombre: string
+  precio: string
+  grupo?: number
+}
+
+interface Variante {
+  id: number
+  nombre: string
+  precio: string
+  grupo?: number
+}
+
 interface Producto {
   id: number
   nombre: string
@@ -66,8 +80,19 @@ interface Producto {
   categoriaId: number | null
   categoria: string | null
   ingredientes?: Ingrediente[]
+  agregados?: Agregado[]
+  agregadosPrimarios?: Agregado[]
+  agregadosSecundarios?: Agregado[]
+  variantes?: Variante[]
+  variantesSecundarias?: Variante[]
+  tituloVariantesPrimarias?: string
+  tituloVariantesSecundarias?: string
+  tituloExtrasPrimarios?: string
+  tituloExtrasSecundarios?: string
   permiteNota?: boolean
   tituloNota?: string
+  descuento?: number | null
+  descuentoFechaFin?: string | null
 }
 
 interface Cliente {

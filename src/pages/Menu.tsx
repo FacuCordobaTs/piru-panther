@@ -21,6 +21,16 @@ import { MisPedidosDrawer } from '@/components/MisPedidosDrawer'
 
 type HorarioTurno = { diaSemana: number; horaApertura: string; horaCierre: string }
 
+function formatTimeLeft(fechaFin: string | Date | null): string | null {
+  if (!fechaFin) return null
+  const diff = new Date(fechaFin).getTime() - Date.now()
+  if (diff <= 0) return null
+  const hours = Math.floor(diff / 3_600_000)
+  if (hours < 1) return 'menos de 1h'
+  if (hours < 24) return `${hours}h`
+  return `${Math.floor(hours / 24)}d`
+}
+
 function checkIsOpen(horarios: HorarioTurno[]): { abierto: boolean; proximaApertura: string | null } {
   if (!horarios || horarios.length === 0) return { abierto: true, proximaApertura: null }
   const now = new Date()
@@ -41,7 +51,7 @@ function checkIsOpen(horarios: HorarioTurno[]): { abierto: boolean; proximaApert
   let mejor: { minutos: number; texto: string } | null = null
   for (const h of horarios) {
     const apertura = parseInt(h.horaApertura.split(':')[0]) * 60 + parseInt(h.horaApertura.split(':')[1])
-    let diasHasta = (h.diaSemana - diaHoy + 7) % 7
+    const diasHasta = (h.diaSemana - diaHoy + 7) % 7
     let minutosHasta = diasHasta * 1440 + (apertura - hhmm)
     if (minutosHasta <= 0) minutosHasta += 7 * 1440
     if (!mejor || minutosHasta < mejor.minutos) {
@@ -127,7 +137,12 @@ const Menu = () => {
         const res = await fetch(`${url}/public/restaurante/${username}`)
         const data = await res.json()
         if (data.success && data.data) {
-          setPermitirProgramados(!!data.data.restaurante?.permitirPedidosProgramados)
+          const publicRestaurante = data.data.restaurante
+          setPermitirProgramados(!!publicRestaurante?.permitirPedidosProgramados)
+          if (publicRestaurante) {
+            const currentRestaurante = useMesaStore.getState().restaurante
+            setRestaurante({ ...currentRestaurante, ...publicRestaurante })
+          }
           if (Array.isArray(data.data.horarios)) {
             setHorarios(data.data.horarios)
             setEstadoAbierto(checkIsOpen(data.data.horarios))
@@ -136,7 +151,7 @@ const Menu = () => {
       } catch { /* ignore */ }
     }
     fetchHorarios()
-  }, [restaurante?.username])
+  }, [restaurante?.username, restaurante?.id, setRestaurante])
 
   useEffect(() => {
     if (horarios.length === 0) return
@@ -281,7 +296,6 @@ const Menu = () => {
         nota: nota?.trim() || undefined,
       },
     })
-    setTimeout(() => abrirCarrito(), 350)
   }
 
   const handleEliminarItem = (itemPedidoId: number) => {
@@ -1090,9 +1104,43 @@ const ProductoCard = ({ producto, onClick, fullWidth }: { producto: any, onClick
   const precioOriginal = parseFloat(producto.precio)
   const precioFinal = tieneDescuento ? precioOriginal * (1 - producto.descuento / 100) : precioOriginal
 
-  // Diseño sólido (único): el glassmorphism quedó discontinuado.
+  if (!producto.imagenUrl) {
+    const tiempoRestante = formatTimeLeft(producto.descuentoFechaFin ?? null)
+    return (
+      <button
+        type="button"
+        className={`group relative flex flex-col justify-between text-left ${fullWidth ? 'w-full' : 'w-44 shrink-0 lg:w-full'} min-h-[140px] p-4.5 rounded-[24px] bg-card border border-border/50 shadow-sm hover:shadow-md transition-all duration-300 hover:border-primary/30 hover:bg-accent/20 hover:scale-[1.02] active:scale-[0.98] ${!fullWidth ? 'snap-start' : ''}`}
+        onClick={onClick}
+      >
+        <div className="flex-1">
+          <div className="flex justify-between items-start gap-3 mb-2">
+            <h3 className="font-bold text-[15px] leading-snug text-foreground line-clamp-3">{producto.nombre}</h3>
+            {tieneDescuento && (
+              <span className="shrink-0 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-[10px] font-extrabold px-1.5 py-0.5 rounded-md uppercase tracking-wider">
+                -{producto.descuento}%
+              </span>
+            )}
+          </div>
+          {producto.descripcion && (
+            <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed font-medium">{producto.descripcion}</p>
+          )}
+        </div>
+        <div className="mt-4 flex items-end gap-1.5">
+          <span className={`font-black text-[18px] ${tieneDescuento ? 'text-emerald-600 dark:text-emerald-400' : 'text-primary'}`}>${precioFinal.toFixed(0)}</span>
+          {tieneDescuento && <span className="text-[11px] font-semibold text-muted-foreground line-through opacity-70 mb-0.5">${precioOriginal.toFixed(0)}</span>}
+        </div>
+        {tiempoRestante && (
+          <span className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 rounded-full border border-amber-500/20 w-fit">
+            <Clock className="w-3 h-3" /> Vence en {tiempoRestante}
+          </span>
+        )}
+      </button>
+    )
+  }
+
   return (
-    <div
+    <button
+      type="button"
       className={`group relative flex flex-col ${fullWidth ? 'w-full' : 'w-48 shrink-0 lg:w-full'} h-[260px] rounded-[24px] bg-card border border-border/50 shadow-md hover:shadow-xl transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] overflow-hidden ${!fullWidth ? 'snap-start' : ''}`}
       onClick={onClick}
     >
@@ -1120,7 +1168,7 @@ const ProductoCard = ({ producto, onClick, fullWidth }: { producto: any, onClick
           {tieneDescuento && <span className="text-[11px] font-semibold text-muted-foreground line-through opacity-70">${precioOriginal.toFixed(0)}</span>}
         </div>
       </div>
-    </div>
+    </button>
   )
 }
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Drawer, DrawerContent } from '@/components/ui/drawer'
 import { motion, AnimatePresence, type PanInfo } from 'motion/react'
-import { Check, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Clock, Minus, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Textarea } from '@/components/ui/textarea'
 
@@ -93,7 +93,7 @@ const STAGE2_BASE_H = IMG_H + 168
 // ── Variante SIN IMAGEN: diseño plano (sin foto ni hoja superpuesta) ──
 // Espeja el card text-only de MenuDelivery: nombre/precio en texto foreground, todo al ras.
 // Alto del header de texto (badges + nombre + precio) que reemplaza a la imagen.
-const FLAT_HEADER_H = 120
+const FLAT_HEADER_H = 170
 // Bases equivalentes a las de arriba pero descontando la imagen y sumando el header de texto.
 const FLAT_STAGE1_BASE_H = STAGE1_BASE_H - IMG_H + FLAT_HEADER_H
 const FLAT_STAGE2_BASE_H = STAGE2_BASE_H - IMG_H + FLAT_HEADER_H
@@ -291,7 +291,14 @@ export function ProductDetailDrawer({ product, open, onClose, onAddToOrder, sibl
     Math.round(vh * 0.85)
   )
   const noteHeight = Math.min(stage2Base + 150, Math.round(vh * 0.85))
-  const drawerHeight = stage === 'note' ? noteHeight : isExtrasStage ? stage2Height : stage === 'secondary' ? secondaryHeight : stage1Height
+  const calculatedHeight = stage === 'note' ? noteHeight : isExtrasStage ? stage2Height : stage === 'secondary' ? secondaryHeight : stage1Height
+  const muestraCantidad = stageIndex === stages.length - 1 && addCount === 0
+  // Reserva espacio real para nombres largos, las dos tandas de opciones, la nota y el
+  // selector de cantidad. El contenido central conserva scroll propio en pantallas bajas.
+  const drawerHeight = Math.min(
+    Math.max(calculatedHeight + (muestraCantidad ? 62 : 0), sinImagen ? 520 : 560),
+    Math.round(vh * 0.92),
+  )
 
   const rowBtn = 'flex items-center justify-between rounded-2xl px-4 py-3.5 text-left transition-colors'
   // Flechas de navegación que flanquean el botón principal — mismo alto/redondeo que el
@@ -435,8 +442,8 @@ export function ProductDetailDrawer({ product, open, onClose, onAddToOrder, sibl
                               </span>
                             )}
                           </div>
-                          <div className="flex items-end justify-between gap-4">
-                            <h3 className="text-[26px] font-bold leading-tight tracking-tight text-foreground">
+                          <div className="flex items-start justify-between gap-3">
+                            <h3 className="min-w-0 text-[24px] font-bold leading-tight tracking-tight text-foreground">
                               {product.nombre}
                             </h3>
                             <div className="shrink-0 text-right">
@@ -568,7 +575,6 @@ export function ProductDetailDrawer({ product, open, onClose, onAddToOrder, sibl
                                       value={nota}
                                       onChange={(event) => setNota(event.target.value.slice(0, 500))}
                                       maxLength={500}
-                                      autoFocus
                                       placeholder="Escribí una aclaración para este producto"
                                       className="min-h-28 resize-none rounded-2xl bg-secondary/50 px-4 py-3 text-base"
                                     />
@@ -646,6 +652,32 @@ export function ProductDetailDrawer({ product, open, onClose, onAddToOrder, sibl
                       {/* Botón principal — muta entre Continuar y Agregar.
                           Cuando se puede navegar entre productos, lo flanquean flechas anterior/siguiente. */}
                       <div className="shrink-0 space-y-2 px-6 pb-7 pt-2">
+                       {muestraCantidad && (
+                         <div className="flex h-12 items-center justify-between rounded-2xl bg-secondary/55 px-2 pl-4">
+                           <span className="text-sm font-semibold text-foreground">Cantidad</span>
+                           <div className="flex items-center gap-1" role="group" aria-label="Cantidad del producto">
+                             <button
+                               type="button"
+                               onClick={() => setQuantity(value => Math.max(1, value - 1))}
+                               disabled={quantity <= 1}
+                               aria-label="Restar uno"
+                               className="flex h-9 w-9 items-center justify-center rounded-xl bg-background text-foreground shadow-sm disabled:opacity-35"
+                             >
+                               <Minus className="h-4 w-4" />
+                             </button>
+                             <span className="w-9 text-center text-base font-bold tabular-nums" aria-live="polite">{quantity}</span>
+                             <button
+                               type="button"
+                               onClick={() => setQuantity(value => Math.min(99, value + 1))}
+                               disabled={quantity >= 99}
+                               aria-label="Sumar uno"
+                               className="flex h-9 w-9 items-center justify-center rounded-xl bg-background text-foreground shadow-sm disabled:opacity-35"
+                             >
+                               <Plus className="h-4 w-4" />
+                             </button>
+                           </div>
+                         </div>
+                       )}
                        <div className="flex items-stretch gap-2">
                         {puedeNavegar && (
                           <button
