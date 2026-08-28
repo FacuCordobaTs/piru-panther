@@ -23,7 +23,7 @@ function waMeDigits(phone: string | null | undefined): string | null {
 export async function redirectPedidoAlWhatsapp(
     orderInfo: OrderInfo,
     restaurante: RestaurantWhatsappData | null | undefined,
-    whatsappDestino?: string | null,
+    _whatsappDestino?: string | null,
     transferenciaAliasDestino?: string | null,
 ): Promise<boolean> {
     // Panther tiene un único destino operativo. Ignoramos deliberadamente los
