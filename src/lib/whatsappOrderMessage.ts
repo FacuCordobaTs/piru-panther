@@ -1,5 +1,10 @@
 import { orderItemDisplayName, parseAgregadosList, orderItemLineSubtotalSession } from './orderSummaryItem'
 
+// Panther es una tienda single-tenant. Este es el destino operativo único para
+// los pedidos enviados por el cliente; no debe depender de datos legacy del
+// restaurante ni de números de sucursales que puedan quedar desactualizados.
+export const PANTHER_WHATSAPP_DESTINO = '543408401510'
+
 /**
  * Arma el mensaje de WhatsApp con el detalle completo del pedido para que el
  * cliente se lo envíe al restaurante (flujo estilo "link in bio"). Es el canal

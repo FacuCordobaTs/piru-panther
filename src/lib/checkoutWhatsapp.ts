@@ -1,4 +1,4 @@
-import { buildWhatsappOrderMessage } from './whatsappOrderMessage'
+import { buildWhatsappOrderMessage, PANTHER_WHATSAPP_DESTINO } from './whatsappOrderMessage'
 
 type OrderInfo = Record<string, unknown>
 
@@ -26,7 +26,10 @@ export async function redirectPedidoAlWhatsapp(
     whatsappDestino?: string | null,
     transferenciaAliasDestino?: string | null,
 ): Promise<boolean> {
-    const phone = waMeDigits(whatsappDestino || restaurante?.comprobantesWhatsapp || restaurante?.telefono)
+    // Panther tiene un único destino operativo. Ignoramos deliberadamente los
+    // números devueltos por configuración para evitar enviar pedidos a un dato
+    // legacy o a una sucursal equivocada.
+    const phone = waMeDigits(PANTHER_WHATSAPP_DESTINO)
     if (!phone) return false
 
     const completedOrderInfo = { ...orderInfo }
