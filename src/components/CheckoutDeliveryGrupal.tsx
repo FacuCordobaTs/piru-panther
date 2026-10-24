@@ -8,6 +8,7 @@ import { MapPin, Store, Truck, AlertTriangle, Loader2, Pencil, X, Tag, Home, Bui
 import { AddressAutocomplete } from '@/components/AddressAutocomplete'
 import { AddressMapPreview } from '@/components/AddressMapPreview'
 import type { CheckoutDeliveryData, CheckoutEditSemaphore } from '@/store/mesaStore'
+import type { contextoParaPedidoMarketing } from '@/lib/tracking'
 
 type MetodoPublico = { id: string; label: string; automatico: boolean }
 type FranjaHorario = { id: number; nombre: string; horaInicio: string; horaFin: string }
@@ -42,6 +43,8 @@ interface CheckoutDeliveryGrupalProps {
   enviarPedidoWhatsapp?: boolean
   /** Bloquea toda confirmación mientras el alta del pedido está en curso. */
   submittingOrder?: boolean
+  /** Contexto transitorio del Smart Link para atribuir exclusivamente el pedido final. */
+  contextoMarketing?: ReturnType<typeof contextoParaPedidoMarketing>
 }
 
 export function CheckoutDeliveryGrupal({
@@ -64,6 +67,7 @@ export function CheckoutDeliveryGrupal({
   localCerrado = false,
   enviarPedidoWhatsapp = false,
   submittingOrder = false,
+  contextoMarketing,
 }: CheckoutDeliveryGrupalProps) {
   const [tipoPedido, setTipoPedido] = useState<'delivery' | 'takeaway'>(checkoutData?.tipoPedido || 'delivery')
   const [nombre, setNombre] = useState(checkoutData?.nombre || localStorage.getItem('cliente_nombre') || '')
@@ -357,6 +361,8 @@ export function CheckoutDeliveryGrupal({
       metodoPago: metodoPago ?? null,
       horarioProgramado: usarFranjas ? horarioProgramado : ((programacionObligatoria || programarPedido) ? horarioProgramado : ''),
       sucursalId,
+      ...contextoMarketing,
+      trackingClienteId: clienteId,
     }
 
     sendMessage({ type: 'MODIFICAR_CHECKOUT', payload: { clienteId, updates } })

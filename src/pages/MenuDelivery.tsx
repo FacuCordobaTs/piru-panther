@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input'
 import { CheckoutDeliveryGrupal } from '@/components/CheckoutDeliveryGrupal'
 import { redirectPedidoAlWhatsapp } from '@/lib/checkoutWhatsapp'
+import { configurarGtm, configurarMetaPixel, contextoParaPedidoMarketing, registrarEventoPixel, registrarEventoPixelUnaVez, registrarEventoTrackingUnaVez } from '@/lib/tracking'
 
 type HorarioTurno = { diaSemana: number; horaApertura: string; horaCierre: string }
 
@@ -106,6 +107,7 @@ const MenuDelivery = () => {
     const checkoutDataRef = useRef<any>(null)
     const isSubmittingRef = useRef(false)
     const orderAttemptIdRef = useRef<string | null>(null)
+    const sessionStartRef = useRef<string | null>(null)
 
     const [cartItems, setCartItems] = useState<any[]>(() => {
         const saved = localStorage.getItem(`deliveryCart_${username}`)
@@ -167,6 +169,13 @@ const MenuDelivery = () => {
                 if (data.success) {
                     setRestaurante(data.data.restaurante)
                     setProductos(data.data.productos)
+                    configurarGtm(data.data.restaurante?.gtmContainerId)
+                    configurarMetaPixel(data.data.restaurante?.metaPixelId)
+                    const sessionKey = `${data.data.restaurante?.id}:${username}`
+                    if (data.data.restaurante?.id && sessionStartRef.current !== sessionKey) {
+                        sessionStartRef.current = sessionKey
+                        registrarEventoTrackingUnaVez(data.data.restaurante.id, username, 'session_start', 'storefront')
+                    }
                     if (data.data.horarios) {
                         setHorarios(data.data.horarios)
                         setEstadoAbierto(checkIsOpen(data.data.horarios))
@@ -235,6 +244,7 @@ const MenuDelivery = () => {
                     esCanjePuntos: i.esCanjePuntos || false
                 })),
                 metodoPago: data.metodoPago,
+                ...contextoParaPedidoMarketing(username),
             }
             if (data.codigoDescuentoId) payload.codigoDescuentoId = data.codigoDescuentoId
             if (tipoPedido === 'delivery') {
@@ -256,6 +266,7 @@ const MenuDelivery = () => {
             })
             const result = await res.json()
             if (result.success) {
+                registrarEventoTrackingUnaVez(restaurante.id, username, 'purchase', `pedido-${result.data.id}`, { pedidoUnificadoId: result.data.id, valor: result.data.total ? parseFloat(result.data.total) : parseFloat(data.total || '0'), items: cartItems, metadata: { tipoPedido, cantidadItems: cartItems.length } })
                 pedidoCreado = true
                 localStorage.setItem('cliente_nombre', data.nombre)
                 localStorage.setItem('cliente_telefono', data.telefono)
@@ -401,12 +412,13 @@ const MenuDelivery = () => {
         if (b === 'Sin categoría') return -1
         return ordenCategoria(a) - ordenCategoria(b) || a.localeCompare(b)
     }
-    const categoriasBase = Array.from(new Set<string>(productos.map(p => p.categoria).filter(Boolean))).sort(compararCategorias)
+    const productosVenta = productos.filter(p => !p.soloCanjePuntos)
+    const categoriasBase = Array.from(new Set<string>(productosVenta.map(p => p.categoria).filter(Boolean))).sort(compararCategorias)
     const tieneProductosCanje = productos.some(p => p.puntosNecesarios > 0)
     const categorias = ['All', ...categoriasBase]
     if (restaurante?.sistemaPuntos && tieneProductosCanje) categorias.push('Canje Puntos')
 
-    const productosPorCategoria = productos.reduce((acc, producto) => {
+    const productosPorCategoria = productosVenta.reduce((acc, producto) => {
         const categoria = producto.categoria || 'Sin categoría'
         if (!acc[categoria]) {
             acc[categoria] = []
@@ -416,8 +428,8 @@ const MenuDelivery = () => {
     }, {} as Record<string, typeof productos>)
 
     const productosFiltrados = selectedCategory === 'All'
-        ? productos
-        : productos.filter(p => p.categoria === selectedCategory)
+        ? productosVenta
+        : productosVenta.filter(p => p.categoria === selectedCategory)
 
     const categoriasOrdenadas = Object.keys(productosPorCategoria).sort(compararCategorias)
 
@@ -425,6 +437,12 @@ const MenuDelivery = () => {
         setSelectedProduct(producto)
         abrirProductoDrawer()
     }
+
+    useEffect(() => {
+        if (!drawerOpen || !selectedProduct?.id || !restaurante?.id) return
+        registrarEventoTrackingUnaVez(restaurante.id, username, 'product_view', `producto-${selectedProduct.id}`, { productoId: selectedProduct.id, nombreProducto: selectedProduct.nombre, valor: selectedProduct.precio })
+        registrarEventoPixelUnaVez('ViewContent', `producto-${selectedProduct.id}`, { productoId: selectedProduct.id, nombreProducto: selectedProduct.nombre, valor: selectedProduct.precio })
+    }, [drawerOpen, restaurante?.id, selectedProduct?.id, selectedProduct?.precio, username])
 
     // Lista ordenada de productos "hermanos" para poder saltar de uno a otro dentro
     // del drawer (mismo orden en que se ven en pantalla). El canje por puntos queda
@@ -446,6 +464,10 @@ const MenuDelivery = () => {
         }
 
         const esCanje = !!producto.intentandoCanjear;
+        if (producto.soloCanjePuntos && !esCanje) {
+            toast.error('Este producto sólo se puede canjear por puntos.');
+            return false;
+        }
         if (esCanje) {
             const puntosRestantes = (puntosCliente || 0) - puntosEnCarrito() - (producto.puntosNecesarios * cantidad);
             if (puntosRestantes < 0) {
@@ -493,6 +515,7 @@ const MenuDelivery = () => {
         }
 
         setCartItems(prev => [...prev, newItem])
+        registrarEventoPixel('AddToCart', { productoId: producto.id, nombreProducto: producto.nombre, cantidad, valor: (precioFinalNumber * cantidad).toFixed(2) })
 
         setTimeout(() => {
             setCartAnimation(true)
@@ -870,6 +893,7 @@ const MenuDelivery = () => {
                             enviarPedidoWhatsapp={restaurante?.avisosWhatsappClienteEnabled === false}
                             submittingOrder={submittingOrder}
                             localCerrado={!estadoAbierto.abierto}
+                            contextoMarketing={contextoParaPedidoMarketing(username)}
                         />
                     ) : cartItems.length === 0 ? (
                         <div className="flex flex-col items-center justify-center text-center gap-4 opacity-60 px-5 py-12">
@@ -886,50 +910,50 @@ const MenuDelivery = () => {
                                     const imagen = item.imagenUrl
                                     const precio = parseFloat(item.precio || 0)
                                     return (
-                                        <div key={item.id} className="relative flex gap-4 p-3 rounded-2xl border transition-all bg-card border-primary/20 shadow-sm">
-                                            <div className="w-20 h-20 shrink-0 rounded-xl overflow-hidden bg-secondary">
+                                        <article key={item.id} className="grid min-h-[112px] grid-cols-[108px_minmax(0,1fr)] overflow-hidden rounded-[20px] border border-border bg-card transition-colors hover:border-foreground/15">
+                                            <div className="min-h-[112px] w-[108px] overflow-hidden bg-muted">
                                                 {imagen ? (
-                                                    <img src={imagen} alt="img" className="w-full h-full object-cover" />
+                                                    <img src={imagen} alt={item.nombre} className="h-full w-full object-cover" />
                                                 ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                                                        <Utensils className="w-6 h-6 text-primary" />
+                                                    <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                                                        <Utensils className="h-5 w-5" />
                                                     </div>
                                                 )}
                                             </div>
-                                            <div className="flex-1 flex flex-col justify-between py-0.5 min-w-0">
-                                                <div className="flex justify-between items-start gap-2">
-                                                    <div className="min-w-0">
-                                                        <p className="font-bold text-sm truncate">{item.nombre}</p>
+                                            <div className="flex min-w-0 flex-col justify-between px-3.5 py-3">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="line-clamp-2 text-[15px] font-bold leading-5 text-foreground">{item.nombre}</p>
                                                         {item.ingredientesExcluidosNombres?.length > 0 && (
-                                                            <p className="text-xs text-primary/80 font-medium mt-1">
+                                                            <p className="mt-2 text-xs leading-4 text-muted-foreground">
                                                                 ⚠️ Sin: {item.ingredientesExcluidosNombres.join(', ')}
                                                             </p>
                                                         )}
                                                         {item.agregados?.length > 0 && (
-                                                            <div className="mt-1">
+                                                            <div className="mt-1 space-y-0.5">
                                                                 {item.agregados.map((ag: any) => (
-                                                                    <p key={ag.id} className="text-xs text-muted-foreground font-medium">+ {ag.nombre}</p>
+                                                                    <p key={ag.id} className="text-xs leading-4 text-muted-foreground">+ {ag.nombre}</p>
                                                                 ))}
                                                             </div>
                                                         )}
                                                         {item.nota && (
-                                                            <p className="mt-1 text-xs font-semibold text-amber-700 dark:text-amber-400">Nota: {item.nota}</p>
+                                                            <p className="mt-1 text-xs leading-4 text-muted-foreground">Nota: {item.nota}</p>
                                                         )}
                                                     </div>
-                                                    <div className="text-right">
+                                                    <div className="shrink-0 text-right tabular-nums">
                                                         {item.descuento > 0 && (
                                                             <p className="text-[10px] text-muted-foreground line-through">${(parseFloat(item.precioOriginal) * item.cantidad).toFixed(2)}</p>
                                                         )}
-                                                        <p className="font-bold text-base">${(precio * item.cantidad).toFixed(2)}</p>
+                                                        <p className="text-lg font-black leading-5 tracking-tight text-foreground">${(precio * item.cantidad).toFixed(2)}</p>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center justify-end gap-3 mt-2">
-                                                    <button onClick={() => handleEliminarItem(item.id)} className="w-8 h-8 flex items-center justify-center rounded-full bg-destructive/10 text-destructive hover:bg-destructive hover:text-white transition-colors">
-                                                        <Trash2 className="w-4 h-4" />
+                                                <div className="mt-2 flex justify-end">
+                                                    <button type="button" onClick={() => handleEliminarItem(item.id)} aria-label={`Quitar ${item.nombre} del carrito`} className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                                        <Trash2 className="h-4 w-4" />
                                                     </button>
                                                 </div>
                                             </div>
-                                        </div>
+                                        </article>
                                     )
                                 })}
                             </div>
@@ -943,6 +967,7 @@ const MenuDelivery = () => {
                                     disabled={!estadoAbierto.abierto && !restaurante?.permitirPedidosProgramados}
                                     onClick={() => {
                                         if (!estadoAbierto.abierto && !restaurante?.permitirPedidosProgramados) return
+                                        registrarEventoPixelUnaVez('InitiateCheckout', 'checkout', { items: cartItems, valor: Number(totalPedido) })
                                         setMostrarCheckoutEnCarrito(true)
                                         setExpandido(false)
                                     }}

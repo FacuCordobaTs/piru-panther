@@ -3,6 +3,7 @@ import { useMesaStore } from '@/store/mesaStore'
 import { useCarritoStore } from '@/store/carritoStore'
 import { toast } from 'sonner'
 import { redirectPedidoAlWhatsapp } from '@/lib/checkoutWhatsapp'
+import { registrarEventoTrackingUnaVez } from '@/lib/tracking'
 
 interface ItemPedido {
   id: number
@@ -431,6 +432,14 @@ export const useClienteWebSocket = (): UseClienteWebSocketReturn => {
 
               case 'SALA_PEDIDO_CREADO':
                 const payload = data.payload
+                const estadoSala = useMesaStore.getState()
+                const restauranteTracking = estadoSala.restaurante
+                if (estadoSala.checkoutDeliveryData?.trackingClienteId === estadoSala.clienteId && restauranteTracking?.id && restauranteTracking.username) {
+                  registrarEventoTrackingUnaVez(restauranteTracking.id, restauranteTracking.username, 'purchase', `pedido-${payload.pedidoId}`, {
+                    pedidoUnificadoId: payload.pedidoId, valor: Number(payload.total || 0), items: payload.items,
+                    metadata: { tipoPedido: payload.tipoPedido, cantidadItems: Array.isArray(payload.items) ? payload.items.length : 0, grupal: true },
+                  })
+                }
                 const orderInfo = {
                   token: payload.token,
                   pedidoId: payload.pedidoId,
